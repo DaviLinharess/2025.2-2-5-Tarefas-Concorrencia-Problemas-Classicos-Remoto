@@ -1,8 +1,4 @@
-# 2025.2-2-5-Tarefas-Concorrencia-Problemas-Classicos-Remoto
-Atividade avaliativa do 2o bimestre - Implementar solução para o Problema do jantar dos filósofos em python com thread
-
-
-# Atividade avaliativa do 2o bimestre - Implementar solução para o Problema do jantar dos filósofos em python com thread
+# Atividade avaliativa do 2o bimestre - Implementar solução para o Problema do leitores/escritores em python com sockets
 
 ## Contexto
 
@@ -20,7 +16,14 @@ Exemplos de leitura e escrita em sistemas web: consulta de saldo/saque ou depós
 
 ## Requisitos da Implementação
 
-1. ✅ 
+1. ✅ Serão 10 vagas disponibilizadas
+2. ✅ O processo `server.py` gerencia as 10 vagas através de um protocolo com as seguintes mensagens: 
+   - `consultar_vaga`:  retorna o número de vagas disponíveis
+   - `pegar_vaga`: pega uma vaga de estacionamento
+   - `liberar_vaga`: libera uma vaga de estacionamento e sai do estacionamento
+3. ✅ O processo `server.py` escuta clientes simultaneamente, usa `threads`
+4. ✅ O processo `client.py` deve ter 50 clientes
+   - o arquivo `cliente.py` esta praticamente vazio, contém classe e função main a serem preenchidos
 
 ## Entrega deve conter
 
@@ -29,9 +32,7 @@ Exemplos de leitura e escrita em sistemas web: consulta de saldo/saque ou depós
    - Título
    - Contexto inicial do trabalho (introdução)
    - Descrevendo a solução em python para o problema de leitor / escritor
-     - Implementando o algoritmo
-       - Qual o algoritmo utilizado
-       - Implementação do algoritmo em python
+     - Implementando o servidor e cliente
      - Tratando impasse
        - Qual a estratégia de tratamento de impasses
        - Implementação do tratamento de impasse em python
@@ -52,3 +53,4 @@ Exemplos de leitura e escrita em sistemas web: consulta de saldo/saque ou depós
 
 ## Código gerado pelo copilot para este trabalho
 
+FIXME
