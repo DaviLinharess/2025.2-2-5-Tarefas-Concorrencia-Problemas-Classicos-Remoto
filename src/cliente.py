@@ -1,72 +1,89 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Cliente TCP para gerenciamento de vagas de estacionamento.
-O cliente envia comandos ao servidor para consultar,
-pegar e liberar vagas.
-
-Autor: ChatGPT e Copilot com orientação e revisão de Minora
-Data: 2024-06-15
-
-Procure por FIXME para identificar pontos que precisam de implementação adicional.
-
-"""
-
-import threading
 import socket
-import os
-from dotenv import load_dotenv
+import threading
+import time
+import random
 
+"""
+Cliente (Simulação de Carros)
+"""
 
-class ClienteEstacionamento(threading.Thread):
-    def __init__(self, socket_cliente):
-        threading.Thread.__init__(self)
-        self.socket_cliente = socket_cliente
+HOST = '127.0.0.1'
+PORT = 65432
+NUM_CLIENTES = 50
+
+class Cliente(threading.Thread):
+    def __init__(self, cliente_id):
+        super().__init__()
+        self.cliente_id = cliente_id
+
+    def enviar_mensagem(self, sock, mensagem):
+        sock.sendall(mensagem.encode('utf-8'))
+        dados = sock.recv(1024)
+        return dados.decode('utf-8')
 
     def run(self):
-        # Método de execução da thread.
-        # FIXME: Implemente a lógica de tem vaga, estaciona, passeia e libera vaga
-        pass
-
-    def consultar_vaga(self):
-        # Consulta a quantidade de vagas disponíveis no servidor.
-        # FIXME: Implemente a lógica de consulta de vagas retornando true ou false
-        pass
-
-    def pegar_vaga(self):
-        # Tenta pegar uma vaga no servidor.
-        # FIXME: Implemente a lógica de pegar vaga de estacionamento retornando true ou false
-        pass
-
-    def liberar_vaga(self):
-        # Libera a vaga ocupada no servidor.
-        # FIXME: Implemente a lógica de liberar vaga de estacionamento retornando true ou false
-        pass
-    
-    def passear(self):
-        # Simula o tempo que o cliente fica com a vaga ocupada.
-        # FIXME: Implemente a lógica de simulação de tempo de uso da vaga
-        pass
-
-def criar_socket_cliente():
-    # Cria e retorna um socket TCP para o cliente.
-    load_dotenv()
-    PORTA = int(os.getenv('PORT', 5000))
-
-    cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    cliente.connect(('localhost', PORTA))
-    print('Conectado ao servidor de estacionamento')
-    return cliente
+        """
+        Ciclo de vida do cliente:
+        1. Conecta
+        2. Consulta vaga (Leitura)
+        3. Se tiver vaga, tenta pegar (Escrita)
+        4. Fica estacionado (Sleep)
+        5. Libera vaga (Escrita)
+        6. Desconecta
+        """
+        try:
+            # Simula tempo aleatório de chegada
+            time.sleep(random.uniform(0, 2))
+            
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((HOST, PORT))
+            
+            # 1. Consultar Vagas (Leitor)
+            resp_vagas = self.enviar_mensagem(sock, 'consultar_vaga')
+            vagas = int(resp_vagas)
+            
+            print(f"[Carro {self.cliente_id}] consultou. Vagas disponíveis: {vagas}")
+            
+            if vagas > 0:
+                # Tenta pegar a vaga (Escritor)
+                resp_pegar = self.enviar_mensagem(sock, 'pegar_vaga')
+                
+                if resp_pegar == "SUCESSO":
+                    print(f"🟢 [Carro {self.cliente_id}] ESTACIONOU.")
+                    
+                    # Simula tempo estacionado
+                    tempo_estacionado = random.uniform(1, 3)
+                    time.sleep(tempo_estacionado)
+                    
+                    # Libera a vaga (Escritor)
+                    self.enviar_mensagem(sock, 'liberar_vaga')
+                    print(f"🔴 [Carro {self.cliente_id}] SAIU do estacionamento.")
+                else:
+                    print(f"⚠️ [Carro {self.cliente_id}] TENTOU mas estava CHEIO na hora do click.")
+            else:
+                print(f"⛔ [Carro {self.cliente_id}] DESISTIU (Estacionamento Cheio).")
+                
+            sock.close()
+            
+        except Exception as e:
+            print(f"[Carro {self.cliente_id}] Erro: {e}")
 
 def main():
-    # Função principal para iniciar o cliente.
-    # FIXME: Implemente a lógica para iniciar 50 clientes concorrentes
-    # Lembre que são 50 clientes concorrentes
-    # Código comentado abaixo é apenas um exemplo de como iniciar um cliente
-    ### socket = criar_socket_cliente()
-    ### cliente = ClienteEstacionamento(socket)
-    ### cliente.start()
-    pass
+    print(f"Iniciando simulação com {NUM_CLIENTES} carros...")
+    clientes = []
+    
+    # Cria as threads dos clientes
+    for i in range(NUM_CLIENTES):
+        c = Cliente(i)
+        clientes.append(c)
+        c.start()
+        
+    # Aguarda todos terminarem
+    for c in clientes:
+        c.join()
+        
+    print("Simulação finalizada.")
 
 if __name__ == "__main__":
     main()

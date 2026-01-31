@@ -1,90 +1,95 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Servidor TCP para gerenciamento de vagas de estacionamento.
-O servidor escuta conexões de clientes e responde a comandos para consultar,
-pegar e liberar vagas.
-
-Autor: ChatGPT e Copilot com orientação e revisão de Minora
-Data: 2024-06-15
-
-Procure por FIXME para identificar pontos que precisam de implementação adicional.
-
-"""
 import socket
-import os
 import threading
-from dotenv import load_dotenv
 
-# FIXME: Implemente a lógica de gerenciamento de vagas conforme necessário
+"""
+Servidor de Estacionamento (Problema Leitores/Escritores)
+Disciplina: Sistemas Operacionais
+"""
 
-def escutar_cliente(nova_conexao, endereco):
-    """Função para tratar a comunicação com cada cliente"""
-    print(f'Cliente conectado de {endereco}')
-    
+# Configurações do Servidor
+HOST = '127.0.0.1'
+PORT = 65432
+TOTAL_VAGAS = 10
+
+# Estado compartilhado
+vagas_disponiveis = TOTAL_VAGAS
+# Lock para garantir exclusão mútua na escrita (modificação de vagas)
+vaga_lock = threading.Lock()
+
+def processar_cliente(conn, addr):
+    """
+    Função executada em thread separada para cada cliente conectado.
+    """
+    global vagas_disponiveis
+    print(f"[NOVA CONEXÃO] Cliente {addr} conectado.")
+
     try:
         while True:
-            mensagem = nova_conexao.recv(1024)
-            if not mensagem:
-                break            
-            comando = mensagem.decode("utf-8").strip()
-            print(f'Mensagem recebida de {endereco}: {comando}')
+            # Recebe dados do cliente (buffer de 1024 bytes)
+            data = conn.recv(1024)
+            if not data:
+                break
             
-            if comando == 'consultar_vaga':
-                # retorna quantidade de vagas disponíveis
-                # FIXME: implementar lógica real de consulta
-                resposta = str(0)
-                nova_conexao.send(resposta.encode('utf-8'))
+            mensagem = data.decode('utf-8').strip()
+            resposta = ""
+
+            # --- REGIÃO CRÍTICA (Início) ---
+            # O Lock garante que apenas uma thread manipule o contador por vez
+            with vaga_lock:
+                if mensagem == 'consultar_vaga':
+                    # Leitura: Retorna o estado atual
+                    resposta = f"{vagas_disponiveis}"
                 
-            elif comando == 'pegar_vaga':
-                # FIXME: implementar lógica real de alocação
-                # retorna 1 se vaga foi alocada com sucesso
-                #     ou 0 se não há vagas disponíveis
-                resposta = str(1)
-                nova_conexao.send(resposta.encode('utf-8'))
+                elif mensagem == 'pegar_vaga':
+                    # Escrita: Modifica o estado se possível
+                    if vagas_disponiveis > 0:
+                        vagas_disponiveis -= 1
+                        resposta = "SUCESSO"
+                        print(f"[ESCRITA] Vaga ocupada por {addr}. Restam: {vagas_disponiveis}")
+                    else:
+                        resposta = "CHEIO"
                 
-            elif comando == 'liberar_vaga':
-                # FIXME: implementar lógica real de alocação
-                # retorna 1 se vaga foi liberada com sucesso
-                #     ou 0 se não o cliente não possuía vaga alocada
-                # caso de sucesso, lembrar de fechar a conexão e finalizar esta função
-                resposta = str(1)
-                nova_conexao.send(resposta.encode('utf-8'))
+                elif mensagem == 'liberar_vaga':
+                    # Escrita: Modifica o estado
+                    if vagas_disponiveis < TOTAL_VAGAS:
+                        vagas_disponiveis += 1
+                        resposta = "LIBERADA"
+                        print(f"[ESCRITA] Vaga liberada por {addr}. Restam: {vagas_disponiveis}")
+                    else:
+                        resposta = "ERRO_JA_VAZIO"
                 
-            else:
-                # retorna -1 para comando inválido
-                resposta = '-1'
-                nova_conexao.send(resposta.encode('utf-8'))
-                
+                else:
+                    resposta = "COMANDO_INVALIDO"
+            # --- REGIÃO CRÍTICA (Fim) ---
+
+            conn.sendall(resposta.encode('utf-8'))
+
+    except Exception as e:
+        print(f"[ERRO] Erro na conexão com {addr}: {e}")
     finally:
-        nova_conexao.close()
-        print(f'Cliente {endereco} desconectado')
-
-def iniciar_servidor():
-    """Função para iniciar o servidor TCP"""
-    load_dotenv()
-    PORTA = int(os.getenv('PORT', 5000))
-
-    servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    servidor.bind(('localhost', PORTA))
-    servidor.listen(5)
-    print(f'Servidor escutando na porta {PORTA}')
-    print('Aguardando conexões de clientes...\n')
-    return servidor
+        conn.close()
+        # print(f"[DESCONEXÃO] Cliente {addr} desconectou.")
 
 def main():
-    servidor = iniciar_servidor()
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind((HOST, PORT))
+    server.listen()
+    
+    print(f"[*] Servidor ouvindo em {HOST}:{PORT}")
+    print(f"[*] Vagas iniciais: {TOTAL_VAGAS}")
+
     try:
         while True:
-            nova_conexao, endereco = servidor.accept()
-            thread = threading.Thread(target=escutar_cliente, args=(nova_conexao, endereco))
-            thread.daemon = True
+            conn, addr = server.accept()
+            # Cria uma thread para cada cliente (Simultaneidade)
+            thread = threading.Thread(target=processar_cliente, args=(conn, addr))
             thread.start()
-        
+            print(f"[ATIVO] Conexões ativas: {threading.active_count() - 1}")
+    except KeyboardInterrupt:
+        print("\n[*] Desligando servidor...")
     finally:
-        servidor.close()
-        print('\nServidor encerrado')
+        server.close()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
